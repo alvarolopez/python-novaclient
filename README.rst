@@ -231,7 +231,11 @@ You'll find complete documentation on the shell by running
                             option should be used with caution.
       --bypass-url <bypass-url>
                             Use this API endpoint instead of the Service Catalog
-
+      --x509-user-proxy <x509-proxy-location>
+                            User VOMS proxy authentication instead of user
+                            password credentials .Defaults to
+                            env[X509_USER_PROXY].
+                            
     See "nova help COMMAND" for help on a specific command.
 
 Python API

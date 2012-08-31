@@ -125,6 +125,14 @@ class OpenStackComputeShell(object):
         parser.add_argument('--os_tenant_name',
             help=argparse.SUPPRESS)
 
+        parser.add_argument('--x509-user-proxy',
+            metavar='<x509-proxy-location>',
+            default=utils.env('X509_USER_PROXY'),
+            help='User VOMS proxy authentication instead of user '
+                 'password credentials .Defaults to env[X509_USER_PROXY].')
+        parser.add_argument('--x509_user_proxy',
+            help=argparse.SUPPRESS)
+
         parser.add_argument('--os-auth-url',
             metavar='<auth-url>',
             default=utils.env('OS_AUTH_URL', 'NOVA_URL'),
@@ -384,7 +392,7 @@ class OpenStackComputeShell(object):
                 os_region_name, os_auth_system, endpoint_type, insecure,
                 service_type, service_name, volume_service_name,
                 username, apikey, projectid, url, region_name,
-                bypass_url, no_cache) = (
+                bypass_url, no_cache, x509_user_proxy) = (
                         args.os_username, args.os_password,
                         args.os_tenant_name, args.os_auth_url,
                         args.os_region_name, args.os_auth_system,
@@ -392,7 +400,8 @@ class OpenStackComputeShell(object):
                         args.service_name, args.volume_service_name,
                         args.username, args.apikey, args.projectid,
                         args.url, args.region_name,
-                        args.bypass_url, args.no_cache)
+                        args.bypass_url, args.no_cache,
+                        args.x509_user_proxy)
 
         if not endpoint_type:
             endpoint_type = DEFAULT_NOVA_ENDPOINT_TYPE
@@ -405,28 +414,29 @@ class OpenStackComputeShell(object):
         # for os_username or os_password but for compatibility it is not.
 
         if not utils.isunauthenticated(args.func):
-            if not os_username:
-                if not username:
-                    raise exc.CommandError("You must provide a username "
-                            "via either --os-username or env[OS_USERNAME]")
-                else:
-                    os_username = username
+            if not x509_user_proxy:
+                if not os_username:
+                    if not username:
+                        raise exc.CommandError("You must provide a username "
+                                "via either --os-username or env[OS_USERNAME]")
+                    else:
+                        os_username = username
 
-            if not os_password:
-                if not apikey:
-                    raise exc.CommandError("You must provide a password "
-                            "via either --os-password or via "
-                            "env[OS_PASSWORD]")
-                else:
-                    os_password = apikey
+                if not os_password:
+                    if not apikey:
+                        raise exc.CommandError("You must provide a password "
+                                "via either --os-password or via "
+                                "env[OS_PASSWORD]")
+                    else:
+                        os_password = apikey
 
-            if not os_tenant_name:
-                if not projectid:
-                    raise exc.CommandError("You must provide a tenant name "
-                            "via either --os-tenant-name or "
-                            "env[OS_TENANT_NAME]")
-                else:
-                    os_tenant_name = projectid
+                if not os_tenant_name:
+                    if not projectid:
+                        raise exc.CommandError("You must provide a tenant "
+                                "name via either --os-tenant-name or "
+                                "env[OS_TENANT_NAME]")
+                    else:
+                        os_tenant_name = projectid
 
             if not os_auth_url:
                 if not url:
@@ -448,7 +458,7 @@ class OpenStackComputeShell(object):
 
         if (options.os_compute_api_version and
                 options.os_compute_api_version != '1.0'):
-            if not os_tenant_name:
+            if not os_tenant_name and not x509_user_proxy:
                 raise exc.CommandError("You must provide a tenant name "
                         "via either --os-tenant-name or env[OS_TENANT_NAME]")
 
@@ -463,7 +473,8 @@ class OpenStackComputeShell(object):
                 service_name=service_name, auth_system=os_auth_system,
                 volume_service_name=volume_service_name,
                 timings=args.timings, bypass_url=bypass_url,
-                no_cache=no_cache, http_log_debug=options.debug)
+                no_cache=no_cache, http_log_debug=options.debug,
+                x509_user_proxy=x509_user_proxy)
 
         try:
             if not utils.isunauthenticated(args.func):

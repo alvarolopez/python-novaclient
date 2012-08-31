@@ -87,7 +87,9 @@ class HTTPClient(httplib2.Http):
                  endpoint_type='publicURL', service_type=None,
                  service_name=None, volume_service_name=None,
                  timings=False, bypass_url=None, no_cache=False,
-                 http_log_debug=False, auth_system='keystone'):
+                 http_log_debug=False, auth_system='keystone',
+                                  x509_user_proxy=None):
+
         super(HTTPClient, self).__init__(timeout=timeout,
                                          proxy_info=_get_proxy_info())
         self.user = user
@@ -116,6 +118,12 @@ class HTTPClient(httplib2.Http):
         self.proxy_token = proxy_token
         self.proxy_tenant_id = proxy_tenant_id
         self.used_keyring = False
+
+        self.voms_auth = False
+        # If we have a proxy, make the client use it
+        if x509_user_proxy:
+            self.voms_auth = True
+            self.add_certificate(x509_user_proxy, x509_user_proxy, "")
 
         # httplib2 overrides
         self.force_exception_to_status_code = True
@@ -430,9 +438,13 @@ class HTTPClient(httplib2.Http):
 
     def _v2_auth(self, url):
         """Authenticate against a v2.0 auth service."""
-        body = {"auth": {
-                "passwordCredentials": {"username": self.user,
-                                        "password": self.password}}}
+        if self.voms_auth:
+            body = {"auth": {
+                    "voms": True }}
+        else:
+            body = {"auth": {
+                    "passwordCredentials": {"username": self.user,
+                                            "password": self.password}}}
 
         if self.projectid:
             body['auth']['tenantName'] = self.projectid

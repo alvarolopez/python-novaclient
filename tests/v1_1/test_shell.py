@@ -640,3 +640,22 @@ class ShellTest(utils.TestCase):
                            {'createBackup': {'name': 'back1',
                                              'backup_type': 'daily',
                                              'rotation': '1'}})
+
+
+class X509SellTest(ShellTest):
+
+    # Patch os.environ to avoid required auth info.
+    def setUp(self):
+        """Run before each test."""
+        self.old_environment = os.environ.copy()
+        os.environ = {
+            'X509_USER_PROXY': 'fake',
+            'OS_COMPUTE_API_VERSION': '1.1',
+            'NOVA_URL': 'http://no.where',
+        }
+
+        self.shell = novaclient.shell.OpenStackComputeShell()
+
+        #HACK(bcwaldon): replace this when we start using stubs
+        self.old_get_client_class = novaclient.client.get_client_class
+        novaclient.client.get_client_class = lambda *_: fakes.FakeClient

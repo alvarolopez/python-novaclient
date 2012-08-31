@@ -234,6 +234,18 @@ class AuthenticateAgainstKeystoneTests(utils.TestCase):
 
 
 class AuthenticationTests(utils.TestCase):
+    def test_authenticate_using_x509(self):
+        cs = client.Client("username", "password", "project_id", "auth_url",
+                           no_cache=True, x509_user_proxy="proxy")
+
+        management_url = 'https://localhost/v1.1/443470'
+        auth_response = httplib2.Response({
+            'status': 204,
+            'x-server-management-url': management_url,
+            'x-auth-token': '1b751d74-de0c-46ae-84f0-915744b582d1',
+            })
+        mock_request = mock.Mock(return_value=(auth_response, None))
+
     def test_authenticate_success(self):
         cs = client.Client("username", "password", "project_id", "auth_url",
                            no_cache=True)
