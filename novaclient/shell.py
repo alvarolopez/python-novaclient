@@ -93,11 +93,19 @@ class OpenStackComputeShell(object):
             help="Print debugging output")
 
         parser.add_argument('--no-cache',
-            default=utils.env('OS_NO_CACHE', default=False),
-            action='store_true',
-            help="Don't use the auth token cache.")
-        parser.add_argument('--no_cache',
+            default=utils.env('OS_NO_CACHE', default=True),
+            action='store_false',
+            dest='os_cache',
             help=argparse.SUPPRESS)
+        parser.add_argument('--no_cache',
+            action='store_false',
+            dest='os_cache',
+            help=argparse.SUPPRESS)
+
+        parser.add_argument('--os-cache',
+            default=utils.env('OS_CACHE', default=False),
+            action='store_true',
+            help="Use the auth token cache.")
 
         parser.add_argument('--timings',
             default=False,
@@ -392,7 +400,7 @@ class OpenStackComputeShell(object):
                 os_region_name, os_auth_system, endpoint_type, insecure,
                 service_type, service_name, volume_service_name,
                 username, apikey, projectid, url, region_name,
-                bypass_url, no_cache, x509_user_proxy) = (
+                bypass_url, os_cache, x509_user_proxy) = (
                         args.os_username, args.os_password,
                         args.os_tenant_name, args.os_auth_url,
                         args.os_region_name, args.os_auth_system,
@@ -400,7 +408,7 @@ class OpenStackComputeShell(object):
                         args.service_name, args.volume_service_name,
                         args.username, args.apikey, args.projectid,
                         args.url, args.region_name,
-                        args.bypass_url, args.no_cache,
+                        args.bypass_url, args.os_cache,
                         args.x509_user_proxy)
 
         if not endpoint_type:
@@ -473,7 +481,7 @@ class OpenStackComputeShell(object):
                 service_name=service_name, auth_system=os_auth_system,
                 volume_service_name=volume_service_name,
                 timings=args.timings, bypass_url=bypass_url,
-                no_cache=no_cache, http_log_debug=options.debug,
+                no_cache=os_cache, http_log_debug=options.debug,
                 x509_user_proxy=x509_user_proxy)
 
         try:

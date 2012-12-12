@@ -26,6 +26,7 @@ from novaclient.v1_1 import volume_snapshots
 from novaclient.v1_1 import volume_types
 from novaclient.v1_1 import services
 from novaclient.v1_1 import fixed_ips
+from novaclient.v1_1 import floating_ips_bulk
 
 
 class Client(object):
@@ -52,8 +53,9 @@ class Client(object):
                   endpoint_type='publicURL', extensions=None,
                   service_type='compute', service_name=None,
                   volume_service_name=None, timings=False,
-                  bypass_url=None, no_cache=False, http_log_debug=False,
-                  auth_system='keystone', x509_user_proxy=None):
+                  bypass_url=None, os_cache=False, no_cache=True,
+                  http_log_debug=False, auth_system='keystone',
+                  x509_user_proxy=None):
         # FIXME(comstud): Rename the api_key argument above when we
         # know it's not being used as keyword argument
         password = api_key
@@ -90,6 +92,8 @@ class Client(object):
         self.hypervisors = hypervisors.HypervisorManager(self)
         self.services = services.ServiceManager(self)
         self.fixed_ips = fixed_ips.FixedIPsManager(self)
+        self.floating_ips_bulk = floating_ips_bulk.FloatingIPBulkManager(self)
+        self.os_cache = os_cache or not no_cache
 
         # Add in any extensions...
         if extensions:
@@ -114,7 +118,7 @@ class Client(object):
                                     volume_service_name=volume_service_name,
                                     timings=timings,
                                     bypass_url=bypass_url,
-                                    no_cache=no_cache,
+                                    os_cache=self.os_cache,
                                     http_log_debug=http_log_debug,
                                     x509_user_proxy=x509_user_proxy)
 

@@ -82,7 +82,6 @@ class ShellTest(utils.TestCase):
                 'imageRef': '1',
                 'min_count': 1,
                 'max_count': 1,
-                'networks': [],
                 }},
         )
 
@@ -125,7 +124,6 @@ class ShellTest(utils.TestCase):
                 'metadata': {'foo': 'bar=pants', 'spam': 'eggs'},
                 'min_count': 1,
                 'max_count': 1,
-                'networks': [],
             }},
         )
 
@@ -140,7 +138,6 @@ class ShellTest(utils.TestCase):
                     'imageRef': '1',
                     'min_count': 1,
                     'max_count': 1,
-                    'networks': [],
                 },
                 'os:scheduler_hints': {'a': 'b=c'},
             },
@@ -182,7 +179,6 @@ class ShellTest(utils.TestCase):
                 'imageRef': '1',
                 'min_count': 1,
                 'max_count': 1,
-                'networks': [],
                 'personality': [
                    {'path': '/tmp/bar', 'contents': expected_file_data},
                    {'path': '/tmp/foo', 'contents': expected_file_data},
@@ -297,6 +293,15 @@ class ShellTest(utils.TestCase):
         self.assert_called('POST', '/servers/1234/action',
                            {'changePassword': {'adminPass': 'p'}})
 
+    def test_scrub(self):
+        self.run_command('scrub 4ffc664c198e435e9853f2538fbcd7a7')
+        self.assert_called('GET', '/os-networks', pos=-4)
+        self.assert_called('GET', '/os-security-groups?all_tenants=1',
+                          pos=-3)
+        self.assert_called('POST', '/os-networks/1/action',
+                           {"disassociate": None}, pos=-2)
+        self.assert_called('DELETE', '/os-security-groups/1')
+
     def test_show(self):
         self.run_command('show 1234')
         self.assert_called('GET', '/servers/1234', pos=-3)
@@ -385,6 +390,29 @@ class ShellTest(utils.TestCase):
     def test_dns_domains(self):
         self.run_command('dns-domains')
         self.assert_called('GET', '/os-floating-ip-dns')
+
+    def test_floating_ip_bulk_list(self):
+        self.run_command('floating-ip-bulk-list')
+        self.assert_called('GET', '/os-floating-ips-bulk')
+
+    def test_floating_ip_bulk_create(self):
+        self.run_command('floating-ip-bulk-create 10.0.0.1/24')
+        self.assert_called('POST', '/os-floating-ips-bulk',
+                           {'floating_ips_bulk_create':
+                                {'ip_range': '10.0.0.1/24'}})
+
+    def test_floating_ip_bulk_create_host_and_interface(self):
+        self.run_command('floating-ip-bulk-create 10.0.0.1/24 --pool testPool \
+                         --interface ethX')
+        self.assert_called('POST', '/os-floating-ips-bulk',
+                           {'floating_ips_bulk_create':
+                                {'ip_range': '10.0.0.1/24',
+                                 'pool': 'testPool', 'interface': 'ethX'}})
+
+    def test_floating_ip_bulk_delete(self):
+        self.run_command('floating-ip-bulk-delete 10.0.0.1/24')
+        self.assert_called('PUT', '/os-floating-ips-bulk/delete',
+                                {'ip_range': '10.0.0.1/24'})
 
     def test_usage_list(self):
         self.run_command('usage-list --start 2000-01-20 --end 2005-02-01')
@@ -628,6 +656,50 @@ class ShellTest(utils.TestCase):
         body = {'configure_project': {'vpn_ip': "192.168.1.1",
                                       'vpn_port': '1234'}}
         self.assert_called('PUT', '/os-cloudpipe/configure-project', body)
+
+    def test_network_associate_host(self):
+        self.run_command('network-associate-host 1 testHost')
+        body = {'associate_host': 'testHost'}
+        self.assert_called('POST', '/os-networks/1/action', body)
+
+    def test_network_associate_project(self):
+        self.run_command('network-associate-project 1')
+        body = {'id': "1"}
+        self.assert_called('POST', '/os-networks/add', body)
+
+    def test_network_disassociate(self):
+        self.run_command('network-disassociate 1')
+        body = {'disassociate': None}
+        self.assert_called('POST', '/os-networks/1/action', body)
+
+    def test_network_disassociate_host(self):
+        self.run_command('network-disassociate --host-only 1 2')
+        body = {'disassociate_host': None}
+        self.assert_called('POST', '/os-networks/2/action', body)
+
+    def test_network_disassociate(self):
+        self.run_command('network-disassociate --project-only 1 2')
+        body = {'disassociate_project': None}
+        self.assert_called('POST', '/os-networks/2/action', body)
+
+    def test_network_create_v4(self):
+        self.run_command('network-create --fixed-range-v4 10.0.1.0/24 \
+                          new_network')
+        body = {'cidr': '10.0.1.0/24', 'label': 'new_network'}
+        self.assert_called('POST', '/os-networks', body)
+
+    def test_network_create_v4(self):
+        self.run_command('network-create --fixed-range-v4 10.0.1.0/24 \
+                         --dns1 10.0.1.254 new_network')
+        body = {'network': {'cidr': '10.0.1.0/24', 'label': 'new_network',
+                            'dns1': '10.0.1.254'}}
+        self.assert_called('POST', '/os-networks', body)
+
+    def test_network_create_v6(self):
+        self.run_command('network-create --fixed-range-v6 2001::/64 \
+                          new_network')
+        body = {'network': {'cidr_v6': '2001::/64', 'label': 'new_network'}}
+        self.assert_called('POST', '/os-networks', body)
 
     def test_backup(self):
         self.run_command('backup sample-server back1 daily 1')

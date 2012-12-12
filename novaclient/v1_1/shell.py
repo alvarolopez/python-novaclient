@@ -496,6 +496,23 @@ def do_flavor_access_remove(cs, args):
     utils.print_list(access_list, columns)
 
 
+@utils.arg('project_id', metavar='<project_id>',
+           help='The ID of the project.')
+def do_scrub(cs, args):
+    """Deletes data associated with the project"""
+    networks_list = cs.networks.list()
+    networks_list = [network for network in networks_list
+                 if getattr(network, 'project_id', '') == args.project_id]
+    search_opts = {'all_tenants': 1}
+    groups = cs.security_groups.list(search_opts)
+    groups = [group for group in groups
+              if group.tenant_id == args.project_id]
+    for network in networks_list:
+        cs.networks.disassociate(network)
+    for group in groups:
+        cs.security_groups.delete(group)
+
+
 def do_network_list(cs, _args):
     """Print a list of available networks."""
     network_list = cs.networks.list()
@@ -510,6 +527,134 @@ def do_network_show(cs, args):
     """Show details about the given network."""
     network = utils.find_resource(cs.networks, args.network)
     utils.print_dict(network._info)
+
+
+@utils.arg('--host-only',
+           dest='host_only',
+           metavar='<0|1>',
+           nargs='?',
+           type=int,
+           const=1,
+           default=0)
+@utils.arg('--project-only',
+           dest='project_only',
+           metavar='<0|1>',
+           nargs='?',
+           type=int,
+           const=1,
+           default=0)
+@utils.arg('network',
+     metavar='<network>',
+     help="uuid of network")
+def do_network_disassociate(cs, args):
+    """Disassociate host and/or project from the given network."""
+    if args.host_only:
+        cs.networks.disassociate(args.network, True, False)
+    elif args.project_only:
+        cs.networks.disassociate(args.network, False, True)
+    else:
+        cs.networks.disassociate(args.network, True, True)
+
+
+@utils.arg('network',
+     metavar='<network>',
+     help="uuid of network")
+@utils.arg('host',
+     metavar='<host>',
+     help="Name of host")
+def do_network_associate_host(cs, args):
+    """Associate host with network."""
+    cs.networks.associate_host(args.network, args.host)
+
+
+@utils.arg('network',
+     metavar='<network>',
+     help="uuid of network")
+def do_network_associate_project(cs, args):
+    """Associate project with network."""
+    cs.networks.associate_project(args.network)
+
+
+def _filter_network_create_options(args):
+    valid_args = ['label', 'cidr', 'vlan', 'vpn_start', 'cidr_v6', 'gateway',
+                  'gateway_v6', 'bridge', 'multi_host', 'dns1', 'dns2', 'uuid',
+                  'fixed_cidr', 'project_id', 'priority']
+    kwargs = {}
+    for k, v in args.__dict__.items():
+        if k in valid_args and v is not None:
+            kwargs[k] = v
+
+    return kwargs
+
+
+@utils.arg('label',
+     metavar='<network_label>',
+     help="Label for network")
+@utils.arg('--fixed-range-v4',
+     dest='cidr',
+     metavar='<x.x.x.x/yy>',
+     help="IPv4 subnet (ex: 10.0.0.0/8)")
+@utils.arg('--fixed-range-v6',
+     dest="cidr_v6",
+     help='IPv6 subnet (ex: fe80::/64')
+@utils.arg('--vlan',
+     dest='vlan',
+     metavar='<vlan id>',
+     help="vlan id")
+@utils.arg('--vpn',
+     dest='vpn_start',
+     metavar='<vpn start>',
+     help="vpn start")
+@utils.arg('--gateway',
+     dest="gateway",
+     help='gateway')
+@utils.arg('--gateway-v6',
+     dest="gateway_v6",
+     help='ipv6 gateway')
+@utils.arg('--bridge',
+     dest="bridge",
+     metavar='<bridge>',
+     help='VIFs on this network are connected to this bridge')
+@utils.arg('--bridge-interface',
+     dest="bridge_interface",
+     metavar='<bridge interface>',
+     help='the bridge is connected to this interface')
+@utils.arg('--multi-host',
+     dest="multi_host",
+     metavar="<'T'|'F'>",
+     help='Multi host')
+@utils.arg('--dns1',
+     dest="dns1",
+     metavar="<DNS Address>", help='First DNS')
+@utils.arg('--dns2',
+     dest="dns2",
+     metavar="<DNS Address>",
+     help='Second DNS')
+@utils.arg('--uuid',
+     dest="uuid",
+     metavar="<network uuid>",
+     help='Network UUID')
+@utils.arg('--fixed-cidr',
+     dest="fixed_cidr",
+     metavar='<x.x.x.x/yy>',
+     help='IPv4 subnet for fixed IPS (ex: 10.20.0.0/16)')
+@utils.arg('--project-id',
+     dest="project_id",
+     metavar="<project id>",
+     help='Project id')
+@utils.arg('--priority',
+     dest="priority",
+     metavar="<number>",
+     help='Network interface priority')
+def do_network_create(cs, args):
+    """Create a network."""
+
+    if not (args.cidr or args.cidr_v6):
+        raise exceptions.CommandError(
+            "Must specify eith fixed_range_v4 or fixed_range_v6")
+    kwargs = _filter_network_create_options(args)
+
+    cs.networks.create(**kwargs)
 
 
 def do_image_list(cs, _args):
@@ -1425,6 +1570,33 @@ def do_floating_ip_pool_list(cs, _args):
     utils.print_list(cs.floating_ip_pools.list(), ['name'])
 
 
+@utils.arg('--host', dest='host', metavar='<host>', default=None,
+           help='Filter by host')
+def do_floating_ip_bulk_list(cs, args):
+    """List all floating ips"""
+    utils.print_list(cs.floating_ips_bulk.list(args.host), ['project_id',
+                                                            'address',
+                                                            'instance_uuid',
+                                                            'pool',
+                                                            'interface'])
+
+
+@utils.arg('ip_range', metavar='<range>', help='Address range to create')
+@utils.arg('--pool', dest='pool', metavar='<pool>', default=None,
+           help='Pool for new Floating IPs')
+@utils.arg('--interface', metavar='<interface>', default=None,
+           help='Interface for new Floating IPs')
+def do_floating_ip_bulk_create(cs, args):
+    """Bulk create floating ips by range"""
+    cs.floating_ips_bulk.create(args.ip_range, args.pool, args.interface)
+
+
+@utils.arg('ip_range', metavar='<range>', help='Address range to delete')
+def do_floating_ip_bulk_delete(cs, args):
+    """Bulk delete floating ips by range"""
+    cs.floating_ips_bulk.delete(args.ip_range)
+
+
 def _print_dns_list(dns_entries):
     utils.print_list(dns_entries, ['ip', 'name', 'domain'])
 
@@ -2032,10 +2204,10 @@ def do_host_list(cs, args):
 
 
 @utils.arg('host', metavar='<hostname>', help='Name of host.')
-@utils.arg('--status', metavar='<status>', default=None, dest='status',
+@utils.arg('--status', metavar='<enable|disable>', default=None, dest='status',
            help='Either enable or disable a host.')
 @utils.arg('--maintenance',
-    metavar='<maintenance-mode>',
+    metavar='<enable|disable>',
     default=None,
     dest='maintenance',
     help='Either put or resume host to/from maintenance.')
@@ -2221,7 +2393,9 @@ def do_ssh(cs, args):
 
 _quota_resources = ['instances', 'cores', 'ram', 'volumes', 'gigabytes',
                     'floating_ips', 'metadata_items', 'injected_files',
-                    'injected_file_content_bytes']
+                    'key_pairs', 'injected_file_content_bytes',
+                    'injected_file_path_bytes', 'security_groups',
+                    'security_group_rules']
 
 
 def _quota_show(quotas):
@@ -2326,6 +2500,26 @@ def do_quota_defaults(cs, args):
 @utils.arg('--injected_file_content_bytes',
     type=int,
     help=argparse.SUPPRESS)
+@utils.arg('--injected-file-path-bytes',
+    metavar='<injected-file-path-bytes>',
+    type=int,
+    default=None,
+    help='New value for the "injected-file-path-bytes" quota.')
+@utils.arg('--key-pairs',
+    metavar='<key-pairs>',
+    type=int,
+    default=None,
+    help='New value for the "key-pairs" quota.')
+@utils.arg('--security-groups',
+    metavar='<security-groups>',
+    type=int,
+    default=None,
+    help='New value for the "security-groups" quota.')
+@utils.arg('--security-group-rules',
+    metavar='<security-group-rules>',
+    type=int,
+    default=None,
+    help='New value for the "security-group-rules" quota.')
 def do_quota_update(cs, args):
     """Update the quotas for a tenant."""
 
@@ -2396,6 +2590,26 @@ def do_quota_class_show(cs, args):
 @utils.arg('--injected_file_content_bytes',
     type=int,
     help=argparse.SUPPRESS)
+@utils.arg('--injected-file-path-bytes',
+    metavar='<injected-file-path-bytes>',
+    type=int,
+    default=None,
+    help='New value for the "injected-file-path-bytes" quota.')
+@utils.arg('--key-pairs',
+    metavar='<key-pairs>',
+    type=int,
+    default=None,
+    help='New value for the "key-pairs" quota.')
+@utils.arg('--security-groups',
+    metavar='<security-groups>',
+    type=int,
+    default=None,
+    help='New value for the "security-groups" quota.')
+@utils.arg('--security-group-rules',
+    metavar='<security-group-rules>',
+    type=int,
+    default=None,
+    help='New value for the "security-group-rules" quota.')
 def do_quota_class_update(cs, args):
     """Update the quotas for a quota class."""
 

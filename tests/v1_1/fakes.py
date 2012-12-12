@@ -615,6 +615,31 @@ class FakeHTTPClient(base_client.HTTPClient):
     def delete_os_floating_ip_dns_testdomain_entries_testname(self, **kw):
         return (200, None)
 
+    def get_os_floating_ips_bulk(self, **kw):
+        return (200, {'floating_ip_info': [
+            {'id': 1, 'fixed_ip': '10.0.0.1', 'ip': '11.0.0.1'},
+            {'id': 2, 'fixed_ip': '10.0.0.2', 'ip': '11.0.0.2'},
+        ]})
+
+    def get_os_floating_ips_bulk_testHost(self, **kw):
+        return (200, {'floating_ip_info': [
+            {'id': 1, 'fixed_ip': '10.0.0.1', 'ip': '11.0.0.1'},
+            {'id': 2, 'fixed_ip': '10.0.0.2', 'ip': '11.0.0.2'},
+        ]})
+
+    def post_os_floating_ips_bulk(self, **kw):
+        params = kw.get('body').get('floating_ips_bulk_create')
+        pool = params.get('pool', 'defaultPool')
+        interface = params.get('interface', 'defaultInterface')
+        return (200, {'floating_ips_bulk_create':
+                          {'ip_range': '192.168.1.0/30',
+                           'pool': pool,
+                           'interface': interface}})
+
+    def put_os_floating_ips_bulk_delete(self, **kw):
+        ip_range = kw.get('body').get('ip_range')
+        return (200, {'floating_ips_bulk_delete': ip_range})
+
     #
     # Images
     #
@@ -708,26 +733,34 @@ class FakeHTTPClient(base_client.HTTPClient):
                       'tenant_id': 'test',
                       'metadata_items': [],
                       'injected_file_content_bytes': 1,
+                      'injected_file_path_bytes': 1,
                       'volumes': 1,
                       'gigabytes': 1,
                       'ram': 1,
                       'floating_ips': 1,
                       'instances': 1,
                       'injected_files': 1,
-                      'cores': 1}})
+                      'cores': 1,
+                      'keypairs': 1,
+                      'security_groups': 1,
+                      'security_group_rules': 1}})
 
     def get_os_quota_sets_test_defaults(self):
         return (200, {'quota_set': {
                       'tenant_id': 'test',
                       'metadata_items': [],
                       'injected_file_content_bytes': 1,
+                      'injected_file_path_bytes': 1,
                       'volumes': 1,
                       'gigabytes': 1,
                       'ram': 1,
                       'floating_ips': 1,
                       'instances': 1,
                       'injected_files': 1,
-                      'cores': 1}})
+                      'cores': 1,
+                      'keypairs': 1,
+                      'security_groups': 1,
+                      'security_group_rules': 1}})
 
     def put_os_quota_sets_test(self, body, **kw):
         assert body.keys() == ['quota_set']
@@ -737,13 +770,17 @@ class FakeHTTPClient(base_client.HTTPClient):
                       'tenant_id': 'test',
                       'metadata_items': [],
                       'injected_file_content_bytes': 1,
+                      'injected_file_path_bytes': 1,
                       'volumes': 2,
                       'gigabytes': 1,
                       'ram': 1,
                       'floating_ips': 1,
                       'instances': 1,
                       'injected_files': 1,
-                      'cores': 1}})
+                      'cores': 1,
+                      'keypairs': 1,
+                      'security_groups': 1,
+                      'security_group_rules': 1}})
 
     #
     # Quota Classes
@@ -754,13 +791,17 @@ class FakeHTTPClient(base_client.HTTPClient):
                       'class_name': 'test',
                       'metadata_items': [],
                       'injected_file_content_bytes': 1,
+                      'injected_file_path_bytes': 1,
                       'volumes': 1,
                       'gigabytes': 1,
                       'ram': 1,
                       'floating_ips': 1,
                       'instances': 1,
                       'injected_files': 1,
-                      'cores': 1}})
+                      'cores': 1,
+                      'keypairs': 1,
+                      'security_groups': 1,
+                      'security_group_rules': 1}})
 
     def put_os_quota_class_sets_test(self, body, **kw):
         assert body.keys() == ['quota_class_set']
@@ -770,20 +811,25 @@ class FakeHTTPClient(base_client.HTTPClient):
                       'class_name': 'test',
                       'metadata_items': [],
                       'injected_file_content_bytes': 1,
+                      'injected_file_path_bytes': 1,
                       'volumes': 2,
                       'gigabytes': 1,
                       'ram': 1,
                       'floating_ips': 1,
                       'instances': 1,
                       'injected_files': 1,
-                      'cores': 1}})
+                      'cores': 1,
+                      'keypairs': 1,
+                      'security_groups': 1,
+                      'security_group_rules': 1}})
 
     #
     # Security Groups
     #
     def get_os_security_groups(self, **kw):
         return (200, {"security_groups": [
-                {'id': 1, 'name': 'test', 'description': 'FAKE_SECURITY_GROUP'}
+                {'id': 1, 'name': 'test', 'description': 'FAKE_SECURITY_GROUP',
+                 'tenant_id': '4ffc664c198e435e9853f2538fbcd7a7'}
         ]})
 
     def get_os_security_groups_1(self, **kw):
@@ -1119,13 +1165,18 @@ class FakeHTTPClient(base_client.HTTPClient):
                            'uptime': "fake uptime"}})
 
     def get_os_networks(self, **kw):
-        return (200, {'networks': [{"label": "1", "cidr": "10.0.0.0/24"}]})
+        return (200, {'networks': [{"label": "1", "cidr": "10.0.0.0/24",
+                'project_id': '4ffc664c198e435e9853f2538fbcd7a7',
+                'id': '1'}]})
 
     def get_os_networks_1(self, **kw):
         return (200, {'network': {"label": "1", "cidr": "10.0.0.0/24"}})
 
     def post_os_networks(self, **kw):
         return (202, {'network': kw})
+
+    def post_os_networks_1_action(self, **kw):
+        return (202, None)
 
     def delete_os_networks_networkdelete(self, **kw):
         return (202, None)
@@ -1164,3 +1215,15 @@ class FakeHTTPClient(base_client.HTTPClient):
                 }
             }
         )
+
+    def post_os_networks(self, **kw):
+        return (202, {'network': kw})
+
+    def post_os_networks_1_action(self, **kw):
+        return (202, None)
+
+    def post_os_networks_networktest_action(self, **kw):
+        return (202, None)
+
+    def post_os_networks_2_action(self, **kw):
+        return (202, None)
