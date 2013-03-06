@@ -74,6 +74,7 @@ class Client(object):
                   volume_service_name=None, timings=False,
                   bypass_url=None, os_cache=False, no_cache=True,
                   http_log_debug=False, auth_system='keystone',
+                  auth_system_opts=None,
                   cacert=None):
         # FIXME(comstud): Rename the api_key argument above when we
         # know it's not being used as keyword argument
@@ -132,6 +133,7 @@ class Client(object):
                                     insecure=insecure,
                                     timeout=timeout,
                                     auth_system=auth_system,
+                                    auth_system_opts=auth_system_opts,
                                     proxy_token=proxy_token,
                                     proxy_tenant_id=proxy_tenant_id,
                                     region_name=region_name,

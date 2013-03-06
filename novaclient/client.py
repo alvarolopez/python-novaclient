@@ -26,18 +26,10 @@ if not hasattr(urlparse, 'parse_qsl'):
     import cgi
     urlparse.parse_qsl = cgi.parse_qsl
 
+from novaclient import auth_plugins
 from novaclient import exceptions
 from novaclient import service_catalog
 from novaclient import utils
-
-
-def get_auth_system_url(auth_system):
-    """Load plugin-based auth_url"""
-    ep_name = 'openstack.client.auth_url'
-    for ep in pkg_resources.iter_entry_points(ep_name):
-        if ep.name == auth_system:
-            return ep.load()()
-    raise exceptions.AuthSystemNotFound(auth_system)
 
 
 class HTTPClient(object):
@@ -52,12 +44,13 @@ class HTTPClient(object):
                  timings=False, bypass_url=None,
                  os_cache=False, no_cache=True,
                  http_log_debug=False, auth_system='keystone',
+                 auth_system_opts=None,
                  cacert=None):
         self.user = user
         self.password = password
         self.projectid = projectid
         if not auth_url and auth_system and auth_system != 'keystone':
-            auth_url = get_auth_system_url(auth_system)
+            auth_url = auth_plugins.get_auth_system_url(auth_system)
             if not auth_url:
                 raise exceptions.EndpointNotFound()
         self.auth_url = auth_url.rstrip('/')
@@ -94,6 +87,7 @@ class HTTPClient(object):
                 self.verify_cert = True
 
         self.auth_system = auth_system
+        self.auth_system_opts = auth_system_opts
 
         self._logger = logging.getLogger(__name__)
         if self.http_log_debug:
@@ -386,12 +380,7 @@ class HTTPClient(object):
             raise exceptions.from_response(resp, body, url)
 
     def _plugin_auth(self, auth_url):
-        """Load plugin-based authentication"""
-        ep_name = 'openstack.client.authenticate'
-        for ep in pkg_resources.iter_entry_points(ep_name):
-            if ep.name == self.auth_system:
-                return ep.load()(self, auth_url)
-        raise exceptions.AuthSystemNotFound(self.auth_system)
+        auth_plugins.plugin_auth(self, auth_url)
 
     def _v2_auth(self, url):
         """Authenticate against a v2.0 auth service."""
@@ -408,7 +397,7 @@ class HTTPClient(object):
 
         self._authenticate(url, body)
 
-    def _authenticate(self, url, body):
+    def _authenticate(self, url, body, **kwargs):
         """Authenticate and extract the service catalog."""
         token_url = url + "/tokens"
 
@@ -417,7 +406,8 @@ class HTTPClient(object):
             token_url,
             "POST",
             body=body,
-            allow_redirects=True)
+            allow_redirects=True,
+            **kwargs)
 
         return self._extract_service_catalog(url, resp, body)
 

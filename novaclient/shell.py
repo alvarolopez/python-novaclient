@@ -46,6 +46,7 @@ except ImportError:
     pass
 
 import novaclient
+from novaclient import auth_plugins
 from novaclient import client
 from novaclient import exceptions as exc
 import novaclient.extension
@@ -397,6 +398,9 @@ class OpenStackComputeShell(object):
         parser.add_argument('--bypass_url',
             help=argparse.SUPPRESS)
 
+        # The auth-system-plugins might require some extra options
+        auth_plugins.discover_auth_system_opts(parser)
+
         return parser
 
     def get_subcommand_parser(self, version):
@@ -578,12 +582,19 @@ class OpenStackComputeShell(object):
         #FIXME(usrleon): Here should be restrict for project id same as
         # for os_username or os_password but for compatibility it is not.
         if not utils.isunauthenticated(args.func):
-            if not os_username:
-                if not username:
-                    raise exc.CommandError("You must provide a username "
-                            "via either --os-username or env[OS_USERNAME]")
-                else:
-                    os_username = username
+            if os_auth_system and os_auth_system != "keystone":
+                auth_system_opts = auth_plugins.parse_auth_system_opts(
+                        os_auth_system, args)
+            else:
+                auth_system_opts = None
+
+            if not auth_system_opts:
+                if not os_username:
+                    if not username:
+                        raise exc.CommandError("You must provide a username "
+                                "via either --os-username or env[OS_USERNAME]")
+                    else:
+                        os_username = username
 
             if not os_tenant_name:
                 if not projectid:
@@ -626,6 +637,7 @@ class OpenStackComputeShell(object):
                 region_name=os_region_name, endpoint_type=endpoint_type,
                 extensions=self.extensions, service_type=service_type,
                 service_name=service_name, auth_system=os_auth_system,
+                auth_system_opts=auth_system_opts,
                 volume_service_name=volume_service_name,
                 timings=args.timings, bypass_url=bypass_url,
                 os_cache=os_cache, http_log_debug=options.debug,
@@ -635,7 +647,11 @@ class OpenStackComputeShell(object):
         # identifying keyring key can come from the underlying client
         if not utils.isunauthenticated(args.func):
             helper = SecretsHelper(args, self.cs.client)
-            use_pw = True
+            if auth_system_opts and "os_password" not in auth_system_opts:
+                use_pw = False
+            else:
+                use_pw = True
+
             tenant_id, auth_token, management_url = (helper.tenant_id,
                                                      helper.auth_token,
                                                      helper.management_url)

@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import argparse
 import mock
 import pkg_resources
 import requests
@@ -22,6 +23,7 @@ try:
 except ImportError:
     import simplejson as json
 
+from novaclient import auth_plugins
 from novaclient import exceptions
 from novaclient.v1_1 import client
 from tests import utils
@@ -160,6 +162,43 @@ class AuthPluginTest(utils.TestCase):
             self.assertEquals(cs.client.auth_url, "http://faked/v2.0")
 
         test_auth_call()
+
+    @mock.patch.object(pkg_resources, "iter_entry_points")
+    def test_discover_auth_system_options(self, mock_iter_entry_points):
+        class MockEntrypoint(pkg_resources.EntryPoint):
+            def load(self):
+                return self.add_auth_opts
+
+            def add_auth_opts(self, parser):
+                parser.add_argument('--auth_system_opt',
+                        default=False,
+                        action='store_true',
+                        help="Fake option")
+                return parser
+
+        mock_iter_entry_points.side_effect = lambda _t: [
+                MockEntrypoint("fake", "fake", ["add_auth_opts"])]
+
+        parser = argparse.ArgumentParser()
+        auth_plugins.discover_auth_system_opts(parser)
+        opts, args = parser.parse_known_args(['--auth_system_opt'])
+
+        self.assertTrue(opts.auth_system_opt)
+
+    @mock.patch.object(pkg_resources, "iter_entry_points")
+    def test_parse_auth_system_options(self, mock_iter_entry_points):
+        class MockEntrypoint(pkg_resources.EntryPoint):
+            def load(self):
+                return self.parse_auth_opts
+
+            def parse_auth_opts(self, args):
+                return {"fake_argument": True}
+
+        mock_iter_entry_points.side_effect = lambda _t: [
+                MockEntrypoint("fake", "fake", ["parse_auth_opts"])]
+
+        opts = auth_plugins.parse_auth_system_opts("fake", None)
+        self.assertIn("fake_argument", opts)
 
     def test_auth_system_raises_exception_when_missing_auth_url(self):
         class MockAuthUrlEntrypoint(pkg_resources.EntryPoint):
