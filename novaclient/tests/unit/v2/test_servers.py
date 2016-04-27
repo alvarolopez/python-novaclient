@@ -308,6 +308,21 @@ class ServersTest(utils.FixturedTestCase):
         body = jsonutils.loads(self.requests.last_request.body)
         self.assertEqual(test_password, body['server']['adminPass'])
 
+    def test_create_server_preemptible(self):
+        # FIXME(aloga): probably this should go in a microversion test if the
+        # API code gets merged upstream
+        s = self.cs.servers.create(
+            name="My server",
+            image=1,
+            flavor=1,
+            preemptible=True
+        )
+        self.assert_request_id(s, fakes.FAKE_REQUEST_ID_LIST)
+        self.assert_called('POST', '/servers')
+        self.assertIsInstance(s, servers.Server)
+        body = jsonutils.loads(self.requests.last_request.body)
+        self.assertTrue(body['server']['preemptible'])
+
     def test_create_server_userdata_bin(self):
         with tempfile.TemporaryFile(mode='wb+') as bin_file:
             original_data = os.urandom(1024)

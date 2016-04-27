@@ -353,7 +353,8 @@ def _boot(cs, args):
         config_drive=config_drive,
         admin_pass=args.admin_pass,
         access_ip_v4=args.access_ip_v4,
-        access_ip_v6=args.access_ip_v6)
+        access_ip_v6=args.access_ip_v6,
+        preemptible=args.preemptible)
 
     if 'description' in args:
         boot_kwargs["description"] = args.description
@@ -559,6 +560,12 @@ def _boot(cs, args):
     action="store_true",
     default=False,
     help=_('Report the new server boot progress until it completes.'))
+@utils.arg(
+    '--preemptible',
+    dest='preemptible',
+    action="store_true",
+    default=False,
+    help=_('Indicates that the requested instance is preemptible'))
 @utils.arg(
     '--admin-pass',
     dest='admin_pass',

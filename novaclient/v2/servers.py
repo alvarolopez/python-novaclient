@@ -583,7 +583,7 @@ class ServerManager(base.BootingManagerWithFind):
               block_device_mapping_v2=None, nics=None, scheduler_hints=None,
               config_drive=None, admin_pass=None, disk_config=None,
               access_ip_v4=None, access_ip_v6=None, description=None,
-              **kwargs):
+              preemptible=False, **kwargs):
         """
         Create (boot) a new server.
         """
@@ -707,6 +707,9 @@ class ServerManager(base.BootingManagerWithFind):
 
         if description:
             body['server']['description'] = description
+
+        if preemptible:
+            body['server']['preemptible'] = True
 
         return self._create(resource_url, body, response_key,
                             return_raw=return_raw, **kwargs)

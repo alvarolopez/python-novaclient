@@ -171,6 +171,20 @@ class ShellTest(utils.TestCase):
             }},
         )
 
+    def test_boot_preemtible(self):
+        self.run_command('boot --flavor 1 --image 1 --preemptible some-server')
+        self.assert_called_anytime(
+            'POST', '/servers',
+            {'server': {
+                'flavorRef': '1',
+                'name': 'some-server',
+                'imageRef': '1',
+                'preemptible': True,
+                'min_count': 1,
+                'max_count': 1,
+            }},
+        )
+
     def test_boot_user_data(self):
         testfile = os.path.join(os.path.dirname(__file__), 'testfile.txt')
         with open(testfile) as testfile_fd:
